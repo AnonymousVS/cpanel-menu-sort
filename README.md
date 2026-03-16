@@ -18,6 +18,12 @@ curl -sSL https://raw.githubusercontent.com/AnonymousVS/cpanel-menu-sort/refs/he
 2. จัดเรียงเมนูให้ Account ที่มีอยู่แล้วทั้งหมด
 3. สร้าง Hook ให้ Account ใหม่ที่สร้างในอนาคตเรียงเมนูอัตโนมัติ
 
+## เช็ค Hook ปัจจุบัน
+
+```bash
+/usr/local/cpanel/bin/manage_hooks list 2>/dev/null | grep "sort_menu_hook"
+```
+
 ## ลบ Hook
 
 ```bash
