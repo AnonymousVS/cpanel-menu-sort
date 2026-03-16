@@ -46,7 +46,7 @@ echo ""
 echo "=========================================="
 echo "⏳ 2/3 กำลังสร้างไฟล์ Hook Script สำหรับ Account ใหม่..."
 echo "=========================================="
-cat << 'HOOKEOF' > /root/sort_menu_hook.sh
+tee /root/sort_menu_hook.sh > /dev/null << 'EOF'
 #!/bin/bash
 HOOK_DATA=$(cat)
 USERNAME=$(echo "$HOOK_DATA" | python3 -c "
@@ -60,7 +60,7 @@ if [ -n "$USERNAME" ]; then
         HOMEDIR=$(eval echo ~"$USERNAME")
         NVDATA_DIR="$HOMEDIR/.cpanel/nvdata"
 
-        for i in $(seq 1 30); do
+        for i in $(seq 1 15); do
             [ -d "$NVDATA_DIR" ] && break
             sleep 1
         done
@@ -74,7 +74,7 @@ if [ -n "$USERNAME" ]; then
         chown "$USERNAME":"$USERNAME" "$NVDATA_DIR/xmaingroupsorder"
     ) &
 fi
-HOOKEOF
+EOF
 chmod +x /root/sort_menu_hook.sh
 echo "✅ สร้างไฟล์ /root/sort_menu_hook.sh สำเร็จ!"
 echo ""
