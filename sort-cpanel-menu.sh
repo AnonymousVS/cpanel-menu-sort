@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================
 # Sort cPanel Menu + Auto Hook for New Accounts
-# v2 - ใช้ nvdata แทน uapi Personalization
+# v4 - ใช้ nvdata + background hook ไม่บล็อค WHM
 # ============================================
 
 MENU_ORDER="domains|software|files|security|databases|advanced|email|metrics|preferences"
@@ -30,15 +30,14 @@ for acct in data.get('data', {}).get('acct', []):
 " 2>/dev/null); do
     HOMEDIR=$(eval echo ~"$user")
     NVDATA_DIR="$HOMEDIR/.cpanel/nvdata"
-    if [ -d "$NVDATA_DIR" ]; then
-        echo -n "$MENU_ORDER" > "$NVDATA_DIR/xmaingroupsorder"
-        chown "$user":"$user" "$NVDATA_DIR/xmaingroupsorder"
-        echo "  ✅ $user"
-        ((SUCCESS++))
-    else
-        echo "  ❌ $user (ไม่พบ nvdata dir)"
-        ((FAIL++))
+    if [ ! -d "$NVDATA_DIR" ]; then
+        mkdir -p "$NVDATA_DIR"
+        chown "$user":"$user" "$HOMEDIR/.cpanel" "$NVDATA_DIR"
     fi
+    echo -n "$MENU_ORDER" > "$NVDATA_DIR/xmaingroupsorder"
+    chown "$user":"$user" "$NVDATA_DIR/xmaingroupsorder"
+    echo "  ✅ $user"
+    ((SUCCESS++))
 done
 echo ""
 echo "📊 สำเร็จ: $SUCCESS | ล้มเหลว: $FAIL"
@@ -47,25 +46,35 @@ echo ""
 echo "=========================================="
 echo "⏳ 2/3 กำลังสร้างไฟล์ Hook Script สำหรับ Account ใหม่..."
 echo "=========================================="
-cat << EOF > /root/sort_menu_hook.sh
+cat << 'HOOKEOF' > /root/sort_menu_hook.sh
 #!/bin/bash
-HOOK_DATA=\$(cat)
-USERNAME=\$(echo "\$HOOK_DATA" | python3 -c "
+HOOK_DATA=$(cat)
+USERNAME=$(echo "$HOOK_DATA" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 print(data.get('data', {}).get('user', ''))
 " 2>/dev/null)
 
-if [ -n "\$USERNAME" ]; then
-    sleep 3
-    HOMEDIR=\$(eval echo ~"\$USERNAME")
-    NVDATA_DIR="\$HOMEDIR/.cpanel/nvdata"
-    if [ -d "\$NVDATA_DIR" ]; then
-        echo -n "$MENU_ORDER" > "\$NVDATA_DIR/xmaingroupsorder"
-        chown "\$USERNAME":"\$USERNAME" "\$NVDATA_DIR/xmaingroupsorder"
-    fi
+if [ -n "$USERNAME" ]; then
+    (
+        HOMEDIR=$(eval echo ~"$USERNAME")
+        NVDATA_DIR="$HOMEDIR/.cpanel/nvdata"
+
+        for i in $(seq 1 30); do
+            [ -d "$NVDATA_DIR" ] && break
+            sleep 1
+        done
+
+        if [ ! -d "$NVDATA_DIR" ]; then
+            mkdir -p "$NVDATA_DIR"
+            chown "$USERNAME":"$USERNAME" "$HOMEDIR/.cpanel" "$NVDATA_DIR"
+        fi
+
+        echo -n "domains|software|files|security|databases|advanced|email|metrics|preferences" > "$NVDATA_DIR/xmaingroupsorder"
+        chown "$USERNAME":"$USERNAME" "$NVDATA_DIR/xmaingroupsorder"
+    ) &
 fi
-EOF
+HOOKEOF
 chmod +x /root/sort_menu_hook.sh
 echo "✅ สร้างไฟล์ /root/sort_menu_hook.sh สำเร็จ!"
 echo ""
